@@ -108,7 +108,7 @@ class domain_views_handler_field_domain_id extends views_handler_field {
       return l($text, $path);
     }
     else {
-      return $text;
+      return check_plain($text);
     }
   }
 

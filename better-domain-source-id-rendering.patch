@@ -1,0 +1,116 @@
+From 5c511afcbe056f0c107699e8cd46a111f6cb76cf Mon Sep 17 00:00:00 2001
+From: Noah Lively <noah.lively@koremedia.net>
+Date: Tue, 1 Mar 2011 17:29:19 -0800
+Subject: [PATCH] by noahlively: Allows more options in domain_views rendering of Domain Source ID field.
+
+---
+ .../domain_views_handler_field_domain_id.inc       |   75 +++++++++++++++----
+ 1 files changed, 59 insertions(+), 16 deletions(-)
+
+diff --git a/domain_views/includes/domain_views_handler_field_domain_id.inc b/domain_views/includes/domain_views_handler_field_domain_id.inc
+index db35579..39fa2d0 100644
+--- a/domain_views/includes/domain_views_handler_field_domain_id.inc
++++ b/domain_views/includes/domain_views_handler_field_domain_id.inc
+@@ -25,6 +25,9 @@ class domain_views_handler_field_domain_id extends views_handler_field {
+     $options['link_to_default_domain'] = array('default' => FALSE);
+     $options['link_to_original_domain'] = array('default' => FALSE);
+     $options['list_all_domains'] = array('default' => FALSE);
++
++    $options['display_method'] = array('default' => 'domain_id');
++    $options['link_option'] = array('default' => 'none');
+     return $options;
+   }
+ 
+@@ -33,21 +36,38 @@ class domain_views_handler_field_domain_id extends views_handler_field {
+    */
+   function options_form(&$form, &$form_state) {
+     parent::options_form($form, $form_state);
+-    $form['link_to_domain_id'] = array(
+-      '#title' => t('Link this field to its domain by domain_id'),
+-      '#description' => t('This will override any other link you have set.'),
+-      '#type' => 'checkbox',
+-      '#default_value' => !empty($this->options['link_to_domain_id']),
++
++    // Added for compatibility with 6.x-2.9 and previous
++    if ($this->options['link_to_domain_id'] || $this->options['link_to_sitename']) {
++      $this->options['link_option'] = 'link_to_domain';
++
++      // Unset old options
++      $form['link_to_domain_id'] = array('#type' => 'value', '#value' => FALSE);
++      $form['link_to_sitename'] = array('#type' => 'value', '#value' => FALSE);
++    }
++
++    $form['display_method'] = array(
++        '#title' => t('Display as'),
++        '#type' => 'select',
++        '#options' => array(
++            'domain_id' => t('Domain ID'),
++            'sitename' => t('Site Name'),
++            'subdomain' => t('Subdomain'),
++        ),
++        '#default_value' => ($this->options['display_method']) ? $this->options['display_method'] : 'domain_id',
+     );
+-    $form['link_to_sitename'] = array(
+-      '#title' => t('Link this field to its domain by sitename'),
+-      '#description' => t('This will override any other link you have set.'),
+-      '#type' => 'checkbox',
+-      '#default_value' => !empty($this->options['link_to_sitename']),
++
++    $form['link_option'] = array(
++        '#title' => t('Link options'),
++        '#type' => 'select',
++        '#options' => array(
++            'none' => t('No link'),
++            'link_to_domain' => t('Link this field to its domain'),
++        ),
++        '#default_value' => ($this->options['link_option']) ? $this->options['link_option'] : 'none',
+     );
+   }
+ 
+-
+   function query() {
+     parent::query();
+     // The {domain_alias} table uses GID instead of DOMAIN_ID.
+@@ -62,11 +82,34 @@ class domain_views_handler_field_domain_id extends views_handler_field {
+     if (empty($domain)) {
+       return;
+     }
+-    $text = $domain_id;
+-    $path = $domain['path'];
+-    if (!empty($this->options['link_to_sitename'])) {
+-      $text = $domain['sitename'];
++
++    switch ($this->options['display_method']) {
++      case 'sitename':
++        $text = $domain['sitename'];
++        break;
++      case 'subdomain':
++        $text = $domain['subdomain'];
++        break;
++      default:
++        $text = $domain_id;
++        break;
++    }
++
++    switch ($this->options['link_option']) {
++      case 'link_to_domain':
++        $path = $domain['path'];
++        break;
++      default:
++        $path = null;
++        break;
++    }
++
++    if ($path) {
++      return l($text, $path);
++    }
++    else {
++      return $text;
+     }
+-    return l($text, $path);
+   }
++
+ }
+-- 
+1.7.0.6
+
